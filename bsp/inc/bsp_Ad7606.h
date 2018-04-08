@@ -1,0 +1,129 @@
+#ifndef _BSP_AD7606__
+#define _BSP_AD7606__
+
+#include "stm32f4xx_hal.h"
+#include "gpio.h"
+#include "spi.h"
+#define ADC_CHANNEL_CNT 8
+#define ADC_CHANNEL_OUT_CNT 5
+
+
+#define AD7606_RANGE_5 0
+#define AD7606_RANGE_10 1
+
+#define AD7606_MODE_0 0
+#define AD7606_MODE_1 1
+#define AD7606_MODE_2 2
+#define AD7606_MODE_3 3
+#define AD7606_MODE_4 4
+#define AD7606_MODE_5 5
+#define AD7606_MODE_6 6
+#define AD7606_MODE_7 7
+
+#define AD7606_CH0 0
+#define AD7606_CH1 1
+#define AD7606_CH2 2
+#define AD7606_CH3 3
+#define AD7606_CH4 4
+#define AD7606_CH5 5
+#define AD7606_CH6 6
+#define AD7606_CH7 7
+
+
+#define AD7606_SUCESS 0
+#define AD7606_FAIL 1
+
+#define AD7606_OS1_PORT GPIOC
+#define AD7606_OS1_PIN GPIO_PIN_4
+
+#define AD7606_OS2_PORT GPIOA
+#define AD7606_OS2_PIN GPIO_PIN_1
+
+#define AD7606_OS3_PORT GPIOA
+#define AD7606_OS3_PIN GPIO_PIN_0
+
+#define AD7606_CONVST_PORT GPIOC
+#define AD7606_CONVST_PIN GPIO_PIN_2
+
+
+#define AD7606_RESET_PORT GPIOC
+#define AD7606_RESET_PIN GPIO_PIN_1
+
+#define AD7606_BUSY_PORT GPIOC
+#define AD7606_BUSY_PIN GPIO_PIN_0
+
+#define AD7606_FRSTDATA_PORT GPIOC
+#define AD7606_FRSTDATA_PIN GPIO_PIN_13
+
+#define AD7606_MISO_PORT GPIOA
+#define AD7606_MISO_PIN GPIO_PIN_6
+
+#define AD7606_SCK_PORT GPIOA
+#define AD7606_SCK_PIN GPIO_PIN_5
+
+#define AD7606_CS_PORT GPIOA
+#define AD7606_CS_PIN GPIO_PIN_4
+
+
+
+#define AD7606_OS1_H() HAL_GPIO_WritePin(AD7606_OS1_PORT,AD7606_OS1_PIN,GPIO_PIN_SET)
+#define AD7606_OS1_L() HAL_GPIO_WritePin(AD7606_OS1_PORT,AD7606_OS1_PIN,GPIO_PIN_RESET)
+
+#define AD7606_OS2_H() HAL_GPIO_WritePin(AD7606_OS2_PORT,AD7606_OS2_PIN,GPIO_PIN_SET)
+#define AD7606_OS2_L() HAL_GPIO_WritePin(AD7606_OS2_PORT,AD7606_OS2_PIN,GPIO_PIN_RESET)
+
+#define AD7606_OS3_H() HAL_GPIO_WritePin(AD7606_OS3_PORT,AD7606_OS3_PIN,GPIO_PIN_SET)
+#define AD7606_OS3_L() HAL_GPIO_WritePin(AD7606_OS3_PORT,AD7606_OS3_PIN,GPIO_PIN_RESET)
+
+#define AD7606_CONVST_H() HAL_GPIO_WritePin(AD7606_CONVST_PORT,AD7606_CONVST_PIN,GPIO_PIN_SET)
+#define AD7606_CONVST_L() HAL_GPIO_WritePin(AD7606_CONVST_PORT,AD7606_CONVST_PIN,GPIO_PIN_RESET)
+
+#define AD7606_RESET_H() HAL_GPIO_WritePin(AD7606_RESET_PORT,AD7606_RESET_PIN,GPIO_PIN_SET)
+#define AD7606_RESET_L() HAL_GPIO_WritePin(AD7606_RESET_PORT,AD7606_RESET_PIN,GPIO_PIN_RESET)
+
+
+#ifdef SOFT_SPI
+	#define AD7606_SCK_H() HAL_GPIO_WritePin(AD7606_SCK_PORT,AD7606_SCK_PIN,GPIO_PIN_SET)
+	#define AD7606_SCK_L() HAL_GPIO_WritePin(AD7606_SCK_PORT,AD7606_SCK_PIN,GPIO_PIN_RESET)
+#endif
+	#define AD7606_CS_H() HAL_GPIO_WritePin(AD7606_CS_PORT,AD7606_CS_PIN,GPIO_PIN_SET)
+	#define AD7606_CS_L() HAL_GPIO_WritePin(AD7606_CS_PORT,AD7606_CS_PIN,GPIO_PIN_RESET)
+
+
+
+
+
+
+
+extern int16_t Adc_Code[ADC_CHANNEL_CNT];
+
+extern uint8_t Adc_CodeBytes[ADC_CHANNEL_CNT*2];
+extern uint8_t Adc_SampleOneTimeFlag;
+
+
+#ifdef SOFT_SPI
+
+
+#else
+uint8_t AD7606_Read_AllCh(uint8_t *data);
+
+#endif
+
+
+
+
+
+void AD7606_StartConv(void);
+void AD7606_SetOS(uint8_t mode);
+void AD7606_Reset(void);
+void AD7606_Init(uint32_t fre);
+uint8_t AD7606_Is_Busy_Low(void);
+uint8_t AD7606_Read_AllCh(uint8_t *data);
+uint8_t AD7606_Server_Func(int16_t *value);
+void ADC_Sample_Callback(void);
+uint8_t AD7606_Read8Channel(uint8_t *databuf) ;
+uint8_t ADC_Frequency_Modify(uint32_t fre);
+
+
+#endif
+

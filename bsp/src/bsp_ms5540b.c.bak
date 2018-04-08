@@ -1,0 +1,278 @@
+#include "bsp_ms5540b.h"
+#include "bsp_time.h"
+
+#include <math.h>
+
+
+
+MS5540_Typedef MS5540;
+//管脚操作
+
+
+
+
+
+
+
+
+uint8_t  Ms5540_PinCtrl(uint8_t pin,GPIO_PinState value){
+	if(pin==MS5540_CTRL_DIN){
+		HAL_GPIO_WritePin(MS5540_DIN_PORT,MS5540_DIN_PIN,value);
+		return MS5540_SUCCESS;
+	}else if(pin==MS5540_CTRL_SCK){
+		HAL_GPIO_WritePin(MS5540_SCK_PORT,MS5540_SCK_PIN,value);
+		return MS5540_SUCCESS;
+	}else{
+		return MS5540_FALSE;
+	}
+}
+
+
+
+//读DOUT管脚
+uint8_t Ms5540_ReadDoutPin(void){
+ if(GPIO_PIN_SET==HAL_GPIO_ReadPin(MS5540_DOUT_PORT,MS5540_DOUT_PIN))return 1;
+	else return 0;
+}
+
+
+
+
+//start-bit
+
+void Ms5540_StartBit(void){
+	uint8_t i;
+	Ms5540_PinCtrl(MS5540_CTRL_DIN,GPIO_PIN_SET);
+	for(i=0;i<3;i++){
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_SET);
+		//延时
+		NopDelay(50);
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_RESET);
+		//延时
+		NopDelay(50);
+	}
+}
+
+
+//setup-bit
+void Ms5540_SetupBit(uint16_t id){
+	int8_t i;
+	int8_t bits=0;
+	
+	
+	if((id==MS5540_ID_READ_D1)||(id==MS5540_ID_READ_D2)){
+		bits=4;
+	}else{
+		bits=6;
+	}
+	
+	for(i=(bits-1);i>=0;i--){
+		if((id>>i)&0x0001){
+			Ms5540_PinCtrl(MS5540_CTRL_DIN,GPIO_PIN_SET);
+		}else{
+			Ms5540_PinCtrl(MS5540_CTRL_DIN,GPIO_PIN_RESET);
+		}
+		
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_SET);
+		//延时
+		NopDelay(50);
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_RESET);
+		//延时
+		NopDelay(50);
+	}
+}
+
+
+//stop-bit
+
+void Ms5540_StopBit(void){
+	uint8_t i;
+	Ms5540_PinCtrl(MS5540_CTRL_DIN,GPIO_PIN_RESET);
+	for(i=0;i<3;i++){
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_SET);
+		//延时
+		NopDelay(50);
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_RESET);
+		//延时
+		NopDelay(50);
+	}
+}
+
+
+
+
+
+
+
+
+
+//SCK脉冲
+void Ms5540_SckPlus(int8_t n){
+	int8_t i;
+	for(i=n;i>0;i--){
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_SET);
+		//延时
+		NopDelay(50);
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_RESET);
+		//延时
+		NopDelay(50);
+	}
+}
+
+
+
+
+
+void Ms5540_Reset(void){
+	uint8_t i;
+	uint16_t tmp=0xaaaa;
+	
+	for(i=0;i<16;i++){
+		if(tmp&0x8000){
+			Ms5540_PinCtrl(MS5540_CTRL_DIN,GPIO_PIN_SET);
+		}else{
+			Ms5540_PinCtrl(MS5540_CTRL_DIN,GPIO_PIN_RESET);
+		}
+		tmp=tmp<<1;
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_SET);
+		//延时
+		NopDelay(50);
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_RESET);
+		//延时
+		NopDelay(50);
+	}
+	Ms5540_SckPlus(5);//SCK 5个脉冲
+}
+
+
+//初始化
+void Ms5540_Init(MS5540_Typedef *obj){
+
+	Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_RESET);
+	Ms5540_PinCtrl(MS5540_CTRL_DIN,GPIO_PIN_RESET);
+	//延时
+	NopDelay(50);
+	Ms5540_Reset();
+	
+	//读取Word1~4
+	
+	Ms5540_ReadData(MS5540_ID_READ_WORD1,&(obj->word1));
+	Ms5540_ReadData(MS5540_ID_READ_WORD1,&(obj->word2));
+	Ms5540_ReadData(MS5540_ID_READ_WORD1,&(obj->word3));
+	Ms5540_ReadData(MS5540_ID_READ_WORD1,&(obj->word4));
+	
+	
+	obj->C1=(int32_t)((obj->word1)>>1);
+	obj->C2=(int32_t)((((obj->word3)&0x003f)<<6)+((obj->word4)&0x003f));
+	obj->C3=(int32_t)((obj->word4)>>6);
+	obj->C4=(int32_t)((obj->word3)>>6);
+	obj->C5=(int32_t)((((obj->word1)&0x0001)<<10)+((obj->word2)>>6));
+	obj->C6=(int32_t)((obj->word2)&0x003f);
+	
+}
+
+
+
+
+
+//读一个字节
+uint8_t Ms5540_ReadByte(void){
+	int8_t i;
+	uint8_t data=0x00;
+	for(i=0;i<8;i++){
+		data=data<<1;
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_SET);
+		//延时
+		NopDelay(100);
+
+		//读数据
+		if(Ms5540_ReadDoutPin()){
+			data=data|0x01;
+		}else{
+			data&=~0x01;
+		}
+		
+		Ms5540_PinCtrl(MS5540_CTRL_SCK,GPIO_PIN_RESET);
+		NopDelay(100);
+	}
+	return MS5540_SUCCESS;
+}
+
+
+
+
+/*
+
+#define MS5540_ID_READ_D1 0x000a
+#define MS5540_ID_READ_D2 0x0009
+#define MS5540_ID_READ_WORD1 0x0015
+#define MS5540_ID_READ_WORD2 0x0016
+#define MS5540_ID_READ_WORD3 0x0019
+#define MS5540_ID_READ_WORD4 0x001A
+*/
+
+//读D1
+uint8_t Ms5540_ReadData(uint16_t id,uint16_t *value){
+	uint16_t tmp=0;
+	Ms5540_StartBit();//开始位
+	Ms5540_SetupBit(id);//装载位
+	Ms5540_StopBit();//结束位
+	
+	
+	if((id==MS5540_ID_READ_D1)||(id==MS5540_ID_READ_D2)){
+		Ms5540_SckPlus(2);//SCK1个脉冲
+		//延时33ms
+		HAL_Delay(33);
+		//检测DOUT状态
+		if(Ms5540_ReadDoutPin()){
+		//再延时20ms
+		HAL_Delay(20);
+			//继续检测
+			if(Ms5540_ReadDoutPin()){
+				return MS5540_FALSE;
+			}
+		}
+	}else{
+		Ms5540_SckPlus(1);//SCK1个脉冲
+	}
+	
+	
+	//读取2字节
+	tmp=(uint16_t)Ms5540_ReadByte();
+	tmp=tmp<<8;
+	tmp+=(uint16_t)Ms5540_ReadByte();
+	
+	*value=tmp;
+return MS5540_SUCCESS;
+}
+
+
+
+//MS5540_Typedef MS5540;
+
+//测量温度及压力
+uint8_t Ms5540_ReadTempPressure(MS5540_Typedef *obj){
+	
+	Ms5540_ReadData(MS5540_ID_READ_D1,&(obj->D1));
+	Ms5540_ReadData(MS5540_ID_READ_D2,&(obj->D2));
+	obj->UT1=8*obj->C5+20224;
+	obj->dT=obj->D2-obj->UT1;
+	obj->temperature=200+obj->dT*(obj->C6+50)/pow(2,10);
+
+	obj->OFF=obj->C2*4+((obj->C4-512)*obj->dT)/pow(2,12);
+	obj->SENS=obj->C1+(obj->C3*obj->dT)/pow(2,10)+24576;
+	obj->X=(obj->SENS*(obj->D1-7168))/pow(2,14)-obj->OFF;
+	obj->Preesure=obj->X*10/pow(2,5)+2500;
+	
+	
+	//将数据存入BUF
+	obj->temperaturebuf[0]=(uint8_t)((obj->temperature)&0x00ff);
+	obj->temperaturebuf[1]=(uint8_t)(((obj->temperature)&0xff00)>>8);
+	
+	obj->pressurebuf[0]=(uint8_t)((obj->Preesure)&0x00ff);
+	obj->pressurebuf[1]=(uint8_t)(((obj->Preesure)&0xff00)>>8);
+	
+	return MS5540_SUCCESS;
+}
+
+
